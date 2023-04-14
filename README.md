@@ -16,9 +16,7 @@
 </br>
 <p align="center">
 
-  <a href="https://github.com/Justin-OwiStudent/WowCraft/blob/main/src/assets/LOGO.png">
-    <img src="src/assets/LOGO.png" alt="Logo" width="100px">
-  </a>
+ 
   
   <h3 align="center">Wow Craft Server</h3>
 
