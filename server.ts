@@ -46,6 +46,9 @@ app.get("/", (req, res) => {
 
 
 
+//MAKE A POST TO USER PROFILE AND SHOW CRAFTED ITEMS THERE
+
+
 //SIGNUP
 app.post("/user/signup", async (req, res) => {
     try {
