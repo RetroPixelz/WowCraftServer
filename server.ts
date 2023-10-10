@@ -13,6 +13,8 @@ import { InventoryTwo, InventoryTwoModal } from "./models/inventoryTwo";
 import { InventoryThreeModel } from "./models/inventoryThree";
 import { RecipeTwoModel } from "./models/recipeTwo";
 import { RecipeThreeModel } from "./models/recipeThree";
+import { Crafted } from "./models/Crafted";
+import { CraftedDocument } from './models/crafted.interface';
 
 
 dotenv.config();
@@ -68,26 +70,32 @@ app.post("/user/signup", async (req, res) => {
 //LOGIN
 app.post("/user/login", async (req, res) => {
     try {
-        //get var
-        let {username, password} = req.body
-        //does user exist
-        const user = await UserModal.findOne({username: username})
-        if(user) {
-            //check pass match if exist
-            const result = await bcrypt.compare(password, user.password!);
-            if (result) {
-                //JWT token
-                res.json({success: true})
+        // Get username and password from the request body
+        const { username, password } = req.body;
+
+        // Find the user by username
+        const user = await UserModal.findOne({ username: username });
+
+        if (user) {
+            // Check if the provided password matches the hashed password in the database
+            const passwordMatch = await bcrypt.compare(password, user.password!);
+
+            if (passwordMatch) {
+                // Generate a JWT token here if needed
+
+                // Return the user's ID along with success response
+                res.json({ success: true, userId: user._id });
             } else {
-                res.status(400).json({error: "Invalid Password"});
+                res.status(400).json({ error: "Invalid Password" });
             }
         } else {
-            res.status(400).json({error: "User does not exist"});
+            res.status(400).json({ error: "User does not exist" });
         }
     } catch (error) {
-        res.status(400).json({error});
+        res.status(400).json({ error });
     }
-})
+});
+
 //AUTH
 
 
@@ -131,37 +139,70 @@ app.get('/recipe', async (req, res) => {
     }
 })
 
-//craft recipe RECIPE
+
 app.post('/recipe/craft', async (req, res) => {
     try {
-        const { recipeId } = req.body;
+        const { recipeId, userId } = req.body;
 
         const recipe = await RecipeModel.findById(recipeId).exec();
+        const user = await UserModal.findById(userId).exec();
 
-        if(recipe) {
-            recipe!.amount!++ 
-            recipe!.save()
+        console.log(user)
 
-            const ingredients = recipe.ingredients!
-            for(const ingredient of ingredients){
-                const inventoryId = ingredient.inventoryId
-                const inventory = await InventoryModel.findById(inventoryId).exec()
-                if(inventory){
-                    inventory.amount! -= ingredient!.amountNeeded! 
-                    await inventory.save()
-                }
+        if (!recipe) {
+            return res.status(404).send({ error: "Recipe not found" });
+        }
+
+        if (!user) {
+            return res.status(404).send({ error: "User not found" });
+        }
+
+        recipe.amount!++;
+        await recipe.save();
+
+        const ingredients = recipe.ingredients || [];
+        for (const ingredient of ingredients) {
+            const inventoryId = ingredient.inventoryId;
+            const inventory = await InventoryModel.findById(inventoryId).exec();
+            if (inventory) {
+                inventory.amount! -= ingredient.amountNeeded || 0;
+                await inventory.save();
+            } else {
+                console.log(`Inventory not found for ingredient: ${ingredient.inventoryId}`);
             }
-        } 
-        
+        }
 
-        res.send({success: true})
+        // Create a new Crafted item and populate its properties from the recipe
+        const craftedItem = new Crafted();
+        craftedItem.title = recipe.title;
+        craftedItem.description = recipe.description;
+        craftedItem.image = recipe.image;
+        craftedItem.amount = 1; // You can adjust the amount as needed
+
+        if (user.craftedItems) {
+            // Check if an item with the same title already exists
+            const existingItem = user.craftedItems.find(item => item.title === craftedItem.title);
+
+            if (existingItem) {
+                // If it exists, increase its amount
+                existingItem.amount!++;
+                console.log(existingItem.amount)
+            } else {
+                // If it doesn't exist, add the new item to the array
+                user.craftedItems.push(craftedItem);
+            }
+
+            await user.save();
+        } else {
+            console.log("User's craftedItems array not found");
+        }
+
+        res.send({ success: true });
     } catch (error) {
-        console.log(error)
-        res.status(500).send({error: error})
+        console.error("Crafting error:", error);
+        res.status(500).send({ error: "An error occurred while crafting" });
     }
-})
-//RECIPE ONE
-
+});
 
 
 
@@ -199,36 +240,71 @@ app.get('/recipeTwo', async (req, res) => {
     }
 })
 
-//craft recipe RECIPE
+
 app.post('/recipeTwo/craft', async (req, res) => {
     try {
-        const { recipeId } = req.body;
+        const { recipeId, userId } = req.body;
 
         const recipe = await RecipeTwoModel.findById(recipeId).exec();
+        const user = await UserModal.findById(userId).exec();
 
-        if(recipe) {
-            recipe!.amount!++ 
-            recipe!.save()
+        console.log(user)
 
-            const ingredients = recipe.ingredients!
-            for(const ingredient of ingredients){
-                const inventoryId = ingredient.inventoryId
-                const inventory = await InventoryTwoModal.findById(inventoryId).exec()
-                if(inventory){
-                    inventory.amount! -= ingredient!.amountNeeded! 
-                    await inventory.save()
-                }
+        if (!recipe) {
+            return res.status(404).send({ error: "Recipe not found" });
+        }
+
+        if (!user) {
+            return res.status(404).send({ error: "User not found" });
+        }
+
+        recipe.amount!++;
+        await recipe.save();
+
+        const ingredients = recipe.ingredients || [];
+        for (const ingredient of ingredients) {
+            const inventoryId = ingredient.inventoryId;
+            const inventory = await InventoryTwoModal.findById(inventoryId).exec();
+            if (inventory) {
+                inventory.amount! -= ingredient.amountNeeded || 0;
+                await inventory.save();
+            } else {
+                console.log(`Inventory not found for ingredient: ${ingredient.inventoryId}`);
             }
-        } 
-        
+        }
 
-        res.send({success: true})
+        // Create a new Crafted item and populate its properties from the recipe
+        const craftedItem = new Crafted();
+        craftedItem.title = recipe.title;
+        craftedItem.description = recipe.description;
+        craftedItem.image = recipe.image;
+        craftedItem.amount = 1; // You can adjust the amount as needed
+
+        if (user.craftedItems) {
+            // Check if an item with the same title already exists
+            const existingItem = user.craftedItems.find(item => item.title === craftedItem.title);
+
+            if (existingItem) {
+                // If it exists, increase its amount
+                existingItem.amount!++;
+                console.log(existingItem.amount)
+            } else {
+                // If it doesn't exist, add the new item to the array
+                user.craftedItems.push(craftedItem);
+            }
+
+            await user.save();
+        } else {
+            console.log("User's craftedItems array not found");
+        }
+
+        res.send({ success: true });
     } catch (error) {
-        console.log(error)
-        res.status(500).send({error: error})
+        console.error("Crafting error:", error);
+        res.status(500).send({ error: "An error occurred while crafting" });
     }
-})
-//RECIPE TWO
+});
+
 
 
 
@@ -271,49 +347,69 @@ app.get('/recipeThree', async (req, res) => {
     }
 })
 
-//craft recipe RECIPE
 app.post('/recipeThree/craft', async (req, res) => {
     try {
-        const { recipeId } = req.body;
+        const { recipeId, userId } = req.body;
 
         const recipe = await RecipeThreeModel.findById(recipeId).exec();
+        const user = await UserModal.findById(userId).exec();
 
-        if(recipe) {
-            recipe!.amount!++ 
-            recipe!.save()
+        console.log(user)
 
-            const ingredients = recipe.ingredients!
-            for(const ingredient of ingredients){
-                const inventoryId = ingredient.inventoryId
-                const inventory = await InventoryThreeModel.findById(inventoryId).exec()
-                if(inventory){
-                    inventory.amount! -= ingredient!.amountNeeded! 
-                    await inventory.save()
-                }
+        if (!recipe) {
+            return res.status(404).send({ error: "Recipe not found" });
+        }
+
+        if (!user) {
+            return res.status(404).send({ error: "User not found" });
+        }
+
+        recipe.amount!++;
+        await recipe.save();
+
+        const ingredients = recipe.ingredients || [];
+        for (const ingredient of ingredients) {
+            const inventoryId = ingredient.inventoryId;
+            const inventory = await InventoryThreeModel.findById(inventoryId).exec();
+            if (inventory) {
+                inventory.amount! -= ingredient.amountNeeded || 0;
+                await inventory.save();
+            } else {
+                console.log(`Inventory not found for ingredient: ${ingredient.inventoryId}`);
             }
-        } 
-        
+        }
 
-        res.send({success: true})
+        // Create a new Crafted item and populate its properties from the recipe
+        const craftedItem = new Crafted();
+        craftedItem.title = recipe.title;
+        craftedItem.description = recipe.description;
+        craftedItem.image = recipe.image;
+        craftedItem.amount = 1; // You can adjust the amount as needed
+
+        if (user.craftedItems) {
+            // Check if an item with the same title already exists
+            const existingItem = user.craftedItems.find(item => item.title === craftedItem.title);
+
+            if (existingItem) {
+                // If it exists, increase its amount
+                existingItem.amount!++;
+                console.log(existingItem.amount)
+            } else {
+                // If it doesn't exist, add the new item to the array
+                user.craftedItems.push(craftedItem);
+            }
+
+            await user.save();
+        } else {
+            console.log("User's craftedItems array not found");
+        }
+
+        res.send({ success: true });
     } catch (error) {
-        console.log(error)
-        res.status(500).send({error: error})
+        console.error("Crafting error:", error);
+        res.status(500).send({ error: "An error occurred while crafting" });
     }
-})
-//RECIPE THREE
-
-
-
-
-
-
-
-
-
-
-
-
-
+});
 
 
 //INVENTORY ONE
@@ -427,6 +523,26 @@ app.delete("/inventoryThree/:id", async (req, res) => {
 })
 //INVENTORY THREE
 
+
+app.get("/user/:userId/craftedItems", async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const user = await UserModal.findById(userId).exec();
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+          }
+
+          const craftedItems = user.craftedItems || [];
+
+    // Return the craftedItems as JSON response
+         res.json(craftedItems);
+    } catch (error) {
+        console.error('Error fetching craftedItems:', error);
+    res.status(500).json({ error: 'An error occurred while fetching craftedItems' });
+    }
+})
 
 
 

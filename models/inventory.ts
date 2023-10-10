@@ -13,6 +13,8 @@ export class Inventory {
 
     @prop({required: true})
     public amount?: number;
+    
+
 
 }
 

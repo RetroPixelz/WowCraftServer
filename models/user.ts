@@ -1,4 +1,7 @@
-import {prop, getModelForClass} from '@typegoose/typegoose';
+import {prop, getModelForClass, Ref} from '@typegoose/typegoose';
+import { Recipe } from './recipe';
+import { Crafted } from './Crafted';
+
 
 class User {
     
@@ -10,6 +13,10 @@ class User {
 
     @prop({required: true})
     public profession?: string;
+
+    @prop({ type: () => [Crafted], required: true, default: [] }) // Initialize craftedItems as an empty array
+    public craftedItems?: Crafted[];
+
 
 }
 
